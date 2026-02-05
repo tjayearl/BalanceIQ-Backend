@@ -2,14 +2,81 @@
 
 BalanceIQ is a robust backend service for a personal finance management application. It provides core functionalities for handling users, transactions, debts, and notifications through a set of modular Python scripts that interact with a PostgreSQL database.
 
-## Features
+## BalanceIQ Backend Features
 
-*   **User Authentication**: Secure user registration and login using `bcrypt` for password hashing.
-*   **Session Management**: Creation of persistent, expiring user sessions for stateful interactions.
-*   **Transaction Management**: Add, edit, delete, and list income and expense transactions.
-*   **Financial Calculations**: Automatically calculate user balance based on transactions and provide simple tax estimations.
-*   **Debt Tracking**: Manage personal debts, including adding new debts, listing them by status (paid/unpaid), and flagging overdue debts.
-*   **Notifications**: A simple system to create and retrieve user-specific notifications.
+### 1️⃣ User Authentication & Sessions
+
+*   **Register**: Users can create an account with email and password.
+*   **Login / Logout**: Users can log in and log out.
+*   **Session Management**:
+    *   Session-based authentication (later upgrade to JWT for API).
+    *   Users stay logged in until logout or session expiry.
+    *   Session validation ensures only logged-in users can perform actions.
+
+### 2️⃣ Transaction Management (Full CRUD)
+
+*   **Add Transactions**: Income and expense transactions with amount, category, and description.
+*   **List Transactions**: View all transactions for a user.
+*   **Edit Transactions**: Update any transaction’s details.
+*   **Delete Transactions**: Remove a transaction if needed.
+*   **Filter / Summarize**:
+    *   By date or category.
+    *   Supports calculations like current balance and tax.
+    *   Example: Track monthly salary, rent, groceries, etc., and compute net flow automatically.
+
+### 3️⃣ Debt Management
+
+*   **Add Debts**: Track debts with description, amount, and due date.
+*   **Mark Debt as Paid**: Update debt status when settled.
+*   **List Debts**: View paid vs unpaid debts.
+*   **Overdue Detection**: Identify debts that are past due.
+
+### 4️⃣ Notifications (Intelligent & Automatic)
+
+*   Manual and automatic notifications.
+*   **Alerts include**:
+    *   Upcoming debt due dates.
+    *   Overdue debts.
+    *   Low balance warnings.
+    *   Tax due reminders.
+*   **Notification Tracking**: Marked as read/unread.
+
+### 5️⃣ Reports & Analytics (Backend Only)
+
+*   **Monthly, Weekly, Yearly Summaries**:
+    *   Income, expenses, net flow, and debts due.
+*   **Category Summaries**: Total spent by category (Food, Rent, etc.)
+*   **Income vs Expense Analysis**: Quick overview of financial health.
+
+### 6️⃣ API Layer (FastAPI)
+
+*   Fully wrapped backend logic into a REST API.
+*   **Endpoints include**:
+    *   `/auth/register` — register user
+    *   `/auth/login` — login user and generate JWT tokens
+    *   `/transactions` — add, edit, delete, list transactions
+    *   `/debts` — add, mark paid, list debts
+    *   `/reports` — monthly, weekly, yearly summaries, spending by category
+    *   `/notifications` — list notifications, mark as read
+*   **JWT Authentication**: Protect routes and secure data.
+*   **Security & Production Readiness**:
+    *   Input validation
+    *   Error handling
+    *   Environment variables for sensitive info
+    *   Logging and optional rate limiting
+
+### 7️⃣ Integration Ready
+
+*   Fully ready for frontend consumption (React, Vue, mobile apps).
+*   CORS enabled to allow requests from your frontend domain.
+*   All backend logic is reusable as Python functions, so you can test locally in the shell or via API calls.
+
+### Example Use Cases
+
+*   Track your income, expenses, and debts in real-time.
+*   Receive automatic notifications when bills are due or your balance is low.
+*   Generate monthly, weekly, and yearly summaries.
+*   Connect to a web or mobile frontend to provide a full personal finance dashboard.
 
 ## Technology Stack
 
