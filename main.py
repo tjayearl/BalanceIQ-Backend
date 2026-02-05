@@ -20,14 +20,12 @@ from notifications import notify, get_notifications, generate_notifications
 # -------------------------
 app = FastAPI(title="BalanceIQ API", version="1.0")
 
-origins = [
-    "https://balance-iq-gamma.vercel.app",
-    "http://localhost:3000"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://balance-iq-gamma.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
