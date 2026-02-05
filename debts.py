@@ -1,15 +1,12 @@
 from db import get_db
 
-def add_debt(user_id, description, amount, due_date):
+def add_debt(user_id, title, amount, due_date, description=""):
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute(
-        """
-        INSERT INTO debts (user_id, description, amount, due_date)
-        VALUES (%s, %s, %s, %s)
-        """,
-        (user_id, description, amount, due_date)
+        "INSERT INTO debts (user_id, title, amount, due_date, description) VALUES (%s, %s, %s, %s, %s)",
+        (user_id, title, amount, due_date, description)
     )
 
     conn.commit()
@@ -28,3 +25,27 @@ def mark_debt_paid(debt_id):
     conn.commit()
     cur.close()
     conn.close()
+
+def list_debts(user_id, status=None):
+    conn = get_db()
+    cur = conn.cursor()
+    query = "SELECT id, title, description, amount, due_date, paid FROM debts WHERE user_id=%s"
+    params = [user_id]
+    if status == "paid":
+        query += " AND paid=TRUE"
+    elif status == "unpaid":
+        query += " AND paid=FALSE"
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+def overdue_debts(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, title, amount, due_date FROM debts WHERE user_id=%s AND paid=FALSE AND due_date < NOW()", (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows

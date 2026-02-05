@@ -1,5 +1,8 @@
 import bcrypt
 from db import get_db
+import secrets
+import datetime
+
 
 def register(email, password):
     conn = get_db()
@@ -46,3 +49,56 @@ def login(email, password):
         return user_id
 
     return None
+
+def create_session(user_id, duration_hours=8):
+    """Creates a new session for a user and returns a session token."""
+    token = secrets.token_hex(16)
+    expires_at = datetime.datetime.now() + datetime.timedelta(hours=duration_hours)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO sessions (user_id, token, expires_at) VALUES (%s, %s, %s)",
+            (user_id, token, expires_at)
+        )
+        conn.commit()
+        return token
+    except Exception as e:
+        conn.rollback()
+        print(f"Session creation error: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def validate_session(token):
+    """Validates a session token and returns the user_id if valid."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT user_id FROM sessions WHERE token=%s AND expires_at > NOW()",
+            (token,)
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+    except Exception as e:
+        print(f"Session validation error: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def logout(token):
+    """Deletes a session token to log a user out."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM sessions WHERE token=%s", (token,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Logout error: {e}")
+    finally:
+        cur.close()
+        conn.close()

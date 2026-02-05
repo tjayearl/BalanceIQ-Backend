@@ -51,3 +51,39 @@ def calculate_tax(user_id, tax_rate=0.15):
     conn.close()
 
     return float(income) * tax_rate
+
+def list_transactions(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, type, amount, category, description, created_at FROM transactions WHERE user_id=%s ORDER BY created_at DESC",
+        (user_id,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+def edit_transaction(transaction_id, **kwargs):
+    conn = get_db()
+    cur = conn.cursor()
+
+    allowed = {'type', 'amount', 'category', 'description'}
+    updates = {k: v for k, v in kwargs.items() if k in allowed}
+
+    if updates:
+        query = "UPDATE transactions SET " + ", ".join(f"{k}=%s" for k in updates.keys()) + " WHERE id=%s"
+        cur.execute(query, list(updates.values()) + [transaction_id])
+        conn.commit()
+
+    cur.close()
+    conn.close()
+
+def delete_transaction(transaction_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM transactions WHERE id=%s", (transaction_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
