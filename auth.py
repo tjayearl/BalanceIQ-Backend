@@ -4,7 +4,7 @@ import secrets
 import datetime
 
 
-def register(email, password):
+def register(email, password, name=""):
     conn = get_db()
     cur = conn.cursor()
 
@@ -13,8 +13,8 @@ def register(email, password):
 
     try:
         cur.execute(
-            "INSERT INTO users (email, hashed_password) VALUES (%s, %s)",
-            (email, hashed_str)
+            "INSERT INTO users (email, hashed_password, name) VALUES (%s, %s, %s)",
+            (email, hashed_str, name)
         )
         conn.commit()
         return True

@@ -67,7 +67,7 @@ class DebtCreate(BaseModel):
 @app.post("/auth/register")
 def register(user: UserRegister):
     try:
-        auth_register(user.email, user.password)
+        auth_register(user.email, user.password, user.name)
         return {"message": "User registered successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
