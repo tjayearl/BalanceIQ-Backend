@@ -23,8 +23,10 @@ app = FastAPI(title="BalanceIQ API", version="1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:5173",
         "http://localhost:3000",
-        "https://balance-iq-gamma.vercel.app"
+        "https://balance-iq-gamma.vercel.app",
+        "https://balanceiq.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -35,6 +37,7 @@ app.add_middleware(
 # Pydantic models
 # -------------------------
 class UserRegister(BaseModel):
+    name: Optional[str] = ""
     email: str
     password: str
 
@@ -75,7 +78,7 @@ def login(user: UserLogin):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_session(user_id)
-    return {"token": token, "user_id": user_id}
+    return {"access_token": token, "user_id": user_id, "token_type": "bearer"}
 
 @app.post("/auth/logout")
 def logout_user(token: str):
