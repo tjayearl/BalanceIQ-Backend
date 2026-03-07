@@ -66,11 +66,10 @@ class DebtCreate(BaseModel):
 # -------------------------
 @app.post("/auth/register")
 def register(user: UserRegister):
-    try:
-        auth_register(user.email, user.password, user.name)
-        return {"message": "User registered successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    success = auth_register(user.email, user.password, user.name)
+    if not success:
+        raise HTTPException(status_code=400, detail="Registration failed. Email may already be registered.")
+    return {"message": "User registered successfully"}
 
 @app.post("/auth/login")
 def login(user: UserLogin):
