@@ -26,7 +26,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "https://balance-iq-gamma.vercel.app",
-        "https://balanceiq.onrender.com",
+        "https://balanceiq-backend.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
