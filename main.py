@@ -1,8 +1,19 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
+
+# helper dependency to extract and validate bearer token
+
+def require_user_id(authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    token = authorization.split()[1]
+    user_id = validate_session(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return user_id
 
 # Import your existing backend functions
 from auth import register as auth_register, login as auth_login, create_session, validate_session, logout
@@ -57,7 +68,8 @@ class TransactionEdit(BaseModel):
     description: Optional[str] = None
 
 class DebtCreate(BaseModel):
-    description: str
+    title: str
+    description: Optional[str] = ""
     amount: float
     due_date: str       # "YYYY-MM-DD"
 
@@ -80,7 +92,9 @@ def login(user: UserLogin):
     return {"access_token": token, "user_id": user_id, "token_type": "bearer"}
 
 @app.post("/auth/logout")
-def logout_user(token: str):
+def logout_user(user_id: int = Depends(require_user_id), authorization: str = Header(None)):
+    # extract token again from header and remove session
+    token = authorization.split()[1]
     logout(token)
     return {"message": "Logged out successfully"}
 
@@ -88,12 +102,12 @@ def logout_user(token: str):
 # Phase 1: Transactions Endpoints
 # -------------------------
 @app.post("/transactions")
-def create_transaction(user_id: int, tx: TransactionCreate):
+def create_transaction(tx: TransactionCreate, user_id: int = Depends(require_user_id)):
     add_transaction(user_id, tx.type, tx.amount, tx.category, tx.description)
     return {"message": "Transaction added"}
 
 @app.get("/transactions")
-def get_transactions(user_id: int):
+def get_transactions(user_id: int = Depends(require_user_id)):
     return list_transactions(user_id)
 
 @app.put("/transactions/{tx_id}")
@@ -110,12 +124,12 @@ def remove_transaction(tx_id: int):
 # Phase 1: Debts Endpoints
 # -------------------------
 @app.post("/debts")
-def create_debt(user_id: int, debt: DebtCreate):
-    add_debt(user_id, debt.description, debt.amount, debt.due_date)
+def create_debt(debt: DebtCreate, user_id: int = Depends(require_user_id)):
+    add_debt(user_id, debt.title, debt.amount, debt.due_date, debt.description or "")
     return {"message": "Debt added"}
 
 @app.get("/debts")
-def get_user_debts(user_id: int, status: Optional[str] = "unpaid"):
+def get_user_debts(user_id: int = Depends(require_user_id), status: Optional[str] = "unpaid"):
     return list_debts(user_id, status)
 
 @app.put("/debts/{debt_id}/pay")
@@ -124,35 +138,35 @@ def pay_debt(debt_id: int):
     return {"message": "Debt marked as paid"}
 
 @app.get("/debts/overdue")
-def get_overdue_debts(user_id: int):
+def get_overdue_debts(user_id: int = Depends(require_user_id)):
     return overdue_debts(user_id)
 
 # -------------------------
 # Phase 2: Reports & Notifications
 # -------------------------
 @app.get("/notifications")
-def notifications(user_id: int):
+def notifications(user_id: int = Depends(require_user_id)):
     generate_notifications(user_id)
     return get_notifications(user_id)
 
 @app.get("/reports/monthly")
-def monthly_report(user_id: int, month: str):
+def monthly_report(month: str, user_id: int = Depends(require_user_id)):
     return get_monthly_summary(user_id, month)
 
 @app.get("/reports/weekly")
-def weekly_report(user_id: int, week_start: str):
+def weekly_report(week_start: str, user_id: int = Depends(require_user_id)):
     return get_weekly_summary(user_id, week_start)
 
 @app.get("/reports/yearly")
-def yearly_report(user_id: int, year: str):
+def yearly_report(year: str, user_id: int = Depends(require_user_id)):
     return get_yearly_summary(user_id, year)
 
 @app.get("/reports/spending")
-def spending_report(user_id: int, month: str):
+def spending_report(month: str, user_id: int = Depends(require_user_id)):
     return get_spending_by_category(user_id, month)
 
 @app.get("/reports/income-expense")
-def income_vs_expense_report(user_id: int, month: str):
+def income_vs_expense_report(month: str, user_id: int = Depends(require_user_id)):
     return get_income_vs_expense(user_id, month)
 
 # -------------------------

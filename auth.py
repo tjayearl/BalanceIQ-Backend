@@ -44,8 +44,14 @@ def login(email, password):
 
     user_id, stored_hash = user
 
-    # stored_hash is BYTEA, so we use it directly (tobytes() if it was memoryview, but psycopg2 usually returns bytes)
-    if bcrypt.checkpw(password.encode(), stored_hash.encode("utf-8")):
+    # psycopg2 may return bytes, memoryview, or str depending on column type.
+    # convert everything to bytes so bcrypt.checkpw works reliably.
+    if isinstance(stored_hash, memoryview):
+        stored_hash = stored_hash.tobytes()
+    elif isinstance(stored_hash, str):
+        stored_hash = stored_hash.encode("utf-8")
+
+    if bcrypt.checkpw(password.encode(), stored_hash):
         return user_id
 
     return None
