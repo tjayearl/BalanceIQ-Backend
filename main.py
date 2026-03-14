@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime, timedelta
 
@@ -49,13 +49,31 @@ app.add_middleware(
 # Pydantic models
 # -------------------------
 class UserRegister(BaseModel):
-    name: Optional[str] = ""
-    email: str
+    fullName: str
+    email: EmailStr
     password: str
-    country: Optional[str] = "US"
+    confirmPassword: str
+
+    @validator('fullName')
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Full name is required')
+        return v.strip()
+
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+        return v
+
+    @validator('confirmPassword')
+    def passwords_match(cls, v, values):
+        if 'password' in values and v != values['password']:
+            raise ValueError('Passwords do not match')
+        return v
 
 class UserLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class TransactionCreate(BaseModel):
@@ -106,17 +124,28 @@ class OnboardingData(BaseModel):
 # Phase 1: Auth Endpoints
 # -------------------------
 @app.post("/auth/register")
-def register(user: UserRegister):
-    success = auth_register(user.email, user.password, user.name, user.country)
+async def register_user(user: UserRegister):
+    # Register a new user with full name
+    success = auth_register(user.email.lower(), user.password, user.fullName)
     if not success:
         raise HTTPException(status_code=400, detail="Registration failed. Email may already be registered.")
-    return {"message": "User registered successfully"}
+
+    # Create a session token for the new user
+    user_id = auth_login(user.email.lower(), user.password)
+    token = create_session(user_id)
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user_id": user_id,
+        "message": "Registration successful"
+    }
 
 @app.post("/auth/login")
-def login(user: UserLogin):
-    user_id = auth_login(user.email, user.password)
+async def login_user(user: UserLogin):
+    user_id = auth_login(user.email.lower(), user.password)
     if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=400, detail="Invalid email or password")
     token = create_session(user_id)
     return {"access_token": token, "user_id": user_id, "token_type": "bearer"}
 
@@ -133,7 +162,7 @@ async def get_user_profile(user_id: int = Depends(require_user_id)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, email, work_type, currency, country, created_at
+        SELECT id, email, full_name, name, work_type, currency, country, created_at
         FROM users 
         WHERE id = %s
     """, (user_id,))
@@ -143,14 +172,16 @@ async def get_user_profile(user_id: int = Depends(require_user_id)):
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
+    full_name = user[2] or user[3] or ""
     return {
         "id": user[0],
+        "fullName": full_name,
         "email": user[1],
-        "workType": user[2] or "Self-Employed",
-        "currency": user[3] or "USD",
-        "country": user[4] or "USA",
-        "createdAt": str(user[5])
+        "workType": user[4] or "Self-Employed",
+        "currency": user[5] or "USD",
+        "country": user[6] or "USA",
+        "createdAt": str(user[7])
     }
 
 @app.post("/auth/onboarding")

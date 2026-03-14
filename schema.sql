@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     hashed_password TEXT NOT NULL,
+    full_name TEXT DEFAULT '',
     name TEXT DEFAULT '',
     country TEXT DEFAULT 'US',
     work_type TEXT,
