@@ -3,7 +3,15 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     hashed_password TEXT NOT NULL,
     name TEXT DEFAULT '',
+    country TEXT DEFAULT 'US',
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS transactions (

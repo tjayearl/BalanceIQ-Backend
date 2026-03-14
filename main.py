@@ -16,13 +16,14 @@ def require_user_id(authorization: str = Header(None)):
     return user_id
 
 # Import your existing backend functions
-from auth import register as auth_register, login as auth_login, create_session, validate_session, logout
+from auth import register as auth_register, login as auth_login, create_session, validate_session, logout, get_user_profile
 from finance import (
     add_transaction, get_balance, calculate_tax, list_transactions, 
     edit_transaction, delete_transaction, get_monthly_summary, 
     get_weekly_summary, get_yearly_summary, get_spending_by_category, 
     get_income_vs_expense
 )
+from db import get_db
 from debts import add_debt, mark_debt_paid, list_debts, overdue_debts
 from notifications import notify, get_notifications, generate_notifications
 
@@ -51,6 +52,7 @@ class UserRegister(BaseModel):
     name: Optional[str] = ""
     email: str
     password: str
+    country: Optional[str] = "US"
 
 class UserLogin(BaseModel):
     email: str
@@ -78,7 +80,7 @@ class DebtCreate(BaseModel):
 # -------------------------
 @app.post("/auth/register")
 def register(user: UserRegister):
-    success = auth_register(user.email, user.password, user.name)
+    success = auth_register(user.email, user.password, user.name, user.country)
     if not success:
         raise HTTPException(status_code=400, detail="Registration failed. Email may already be registered.")
     return {"message": "User registered successfully"}
@@ -98,6 +100,13 @@ def logout_user(user_id: int = Depends(require_user_id), authorization: str = He
     logout(token)
     return {"message": "Logged out successfully"}
 
+@app.get("/auth/profile")
+def get_profile(user_id: int = Depends(require_user_id)):
+    profile = get_user_profile(user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    return profile
+
 # -------------------------
 # Phase 1: Transactions Endpoints
 # -------------------------
@@ -111,13 +120,17 @@ def get_transactions(user_id: int = Depends(require_user_id)):
     return list_transactions(user_id)
 
 @app.put("/transactions/{tx_id}")
-def update_transaction(tx_id: int, tx: TransactionEdit):
-    edit_transaction(tx_id, amount=tx.amount, category=tx.category, description=tx.description)
+def update_transaction(tx_id: int, tx: TransactionEdit, user_id: int = Depends(require_user_id)):
+    success = edit_transaction(user_id, tx_id, amount=tx.amount, category=tx.category, description=tx.description)
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found or not owned by user")
     return {"message": "Transaction updated"}
 
 @app.delete("/transactions/{tx_id}")
-def remove_transaction(tx_id: int):
-    delete_transaction(tx_id)
+def remove_transaction(tx_id: int, user_id: int = Depends(require_user_id)):
+    success = delete_transaction(user_id, tx_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found or not owned by user")
     return {"message": "Transaction deleted"}
 
 # -------------------------
@@ -133,8 +146,10 @@ def get_user_debts(user_id: int = Depends(require_user_id), status: Optional[str
     return list_debts(user_id, status)
 
 @app.put("/debts/{debt_id}/pay")
-def pay_debt(debt_id: int):
-    mark_debt_paid(debt_id)
+def pay_debt(debt_id: int, user_id: int = Depends(require_user_id)):
+    success = mark_debt_paid(user_id, debt_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Debt not found or not owned by user")
     return {"message": "Debt marked as paid"}
 
 @app.get("/debts/overdue")
@@ -168,6 +183,50 @@ def spending_report(month: str, user_id: int = Depends(require_user_id)):
 @app.get("/reports/income-expense")
 def income_vs_expense_report(month: str, user_id: int = Depends(require_user_id)):
     return get_income_vs_expense(user_id, month)
+
+# -------------------------
+# Dashboard & Settings
+# -------------------------
+@app.get("/dashboard")
+def get_dashboard(user_id: int = Depends(require_user_id)):
+    balance = get_balance(user_id)
+    tax_owed = calculate_tax(user_id)
+    recent_transactions = list_transactions(user_id)[:5]  # Last 5 transactions
+    return {
+        "balance": balance,
+        "tax_owed": tax_owed,
+        "recent_transactions": recent_transactions
+    }
+
+@app.put("/settings/profile")
+def update_profile(updates: dict, user_id: int = Depends(require_user_id)):
+    # Allow updating name and country
+    allowed_fields = {'name', 'country'}
+    updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    
+    if not updates:
+        return {"message": "No valid fields to update"}
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        query = "UPDATE users SET " + ", ".join(f"{k}=%s" for k in updates.keys()) + " WHERE id=%s"
+        cur.execute(query, list(updates.values()) + [user_id])
+        conn.commit()
+        return {"message": "Profile updated"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail="Update failed")
+    finally:
+        cur.close()
+        conn.close()
+
+@app.post("/onboarding/complete")
+def complete_onboarding(user_id: int = Depends(require_user_id)):
+    # Mark onboarding as complete (could add a field to users table)
+    # For now, just return success
+    return {"message": "Onboarding completed"}
 
 # -------------------------
 # Root endpoint

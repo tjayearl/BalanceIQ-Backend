@@ -4,7 +4,7 @@ import secrets
 import datetime
 
 
-def register(email, password, name=""):
+def register(email, password, name="", country="US"):
     conn = get_db()
     cur = conn.cursor()
 
@@ -13,8 +13,8 @@ def register(email, password, name=""):
 
     try:
         cur.execute(
-            "INSERT INTO users (email, hashed_password, name) VALUES (%s, %s, %s)",
-            (email, hashed_str, name)
+            "INSERT INTO users (email, hashed_password, name, country) VALUES (%s, %s, %s, %s)",
+            (email, hashed_str, name, country)
         )
         conn.commit()
         return True
@@ -108,3 +108,20 @@ def logout(token):
     finally:
         cur.close()
         conn.close()
+
+def get_user_profile(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, email, name, country, created_at FROM users WHERE id=%s", (user_id,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    if user:
+        return {
+            "id": user[0],
+            "email": user[1],
+            "name": user[2],
+            "country": user[3],
+            "created_at": user[4]
+        }
+    return None

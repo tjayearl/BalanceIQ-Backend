@@ -13,18 +13,26 @@ def add_debt(user_id, title, amount, due_date, description=""):
     cur.close()
     conn.close()
 
-def mark_debt_paid(debt_id):
+def mark_debt_paid(user_id, debt_id):
     conn = get_db()
     cur = conn.cursor()
 
+    # Check ownership
+    cur.execute("SELECT id FROM debts WHERE id=%s AND user_id=%s", (debt_id, user_id))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return False
+
     cur.execute(
-        "UPDATE debts SET paid=TRUE WHERE id=%s",
-        (debt_id,)
+        "UPDATE debts SET paid=TRUE WHERE id=%s AND user_id=%s",
+        (debt_id, user_id)
     )
 
     conn.commit()
     cur.close()
     conn.close()
+    return True
 
 def list_debts(user_id, status=None):
     conn = get_db()

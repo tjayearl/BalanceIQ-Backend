@@ -37,20 +37,44 @@ def get_balance(user_id):
     conn.close()
     return balance
 
-def calculate_tax(user_id, tax_rate=0.15):
+def calculate_tax(user_id):
     conn = get_db()
     cur = conn.cursor()
 
+    # Get user's country
+    cur.execute("SELECT country FROM users WHERE id=%s", (user_id,))
+    user = cur.fetchone()
+    if not user:
+        cur.close()
+        conn.close()
+        return 0.0
+    
+    country = user[0]
+
+    # Get total income
     cur.execute(
         "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=%s AND type='income'",
         (user_id,)
     )
-
     income = cur.fetchone()[0]
+    
     cur.close()
     conn.close()
 
-    return float(income) * tax_rate
+    # Country-specific tax rates (simplified)
+    tax_rates = {
+        'US': 0.22,  # Federal income tax approx
+        'UK': 0.20,  # Basic rate
+        'CA': 0.25,  # Canada federal
+        'DE': 0.25,  # Germany
+        'FR': 0.30,  # France
+        'AU': 0.23,  # Australia
+        'JP': 0.20,  # Japan
+        'IN': 0.20,  # India
+    }
+    
+    rate = tax_rates.get(country.upper(), 0.15)  # Default 15%
+    return float(income) * rate
 
 def list_transactions(user_id):
     conn = get_db()
@@ -65,28 +89,45 @@ def list_transactions(user_id):
     conn.close()
     return rows
 
-def edit_transaction(transaction_id, **kwargs):
+def edit_transaction(user_id, transaction_id, **kwargs):
     conn = get_db()
     cur = conn.cursor()
+
+    # First check if transaction belongs to user
+    cur.execute("SELECT id FROM transactions WHERE id=%s AND user_id=%s", (transaction_id, user_id))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return False
 
     allowed = {'type', 'amount', 'category', 'description'}
     updates = {k: v for k, v in kwargs.items() if k in allowed}
 
     if updates:
-        query = "UPDATE transactions SET " + ", ".join(f"{k}=%s" for k in updates.keys()) + " WHERE id=%s"
-        cur.execute(query, list(updates.values()) + [transaction_id])
+        query = "UPDATE transactions SET " + ", ".join(f"{k}=%s" for k in updates.keys()) + " WHERE id=%s AND user_id=%s"
+        cur.execute(query, list(updates.values()) + [transaction_id, user_id])
         conn.commit()
 
     cur.close()
     conn.close()
+    return True
 
-def delete_transaction(transaction_id):
+def delete_transaction(user_id, transaction_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM transactions WHERE id=%s", (transaction_id,))
+    
+    # First check if transaction belongs to user
+    cur.execute("SELECT id FROM transactions WHERE id=%s AND user_id=%s", (transaction_id, user_id))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return False
+    
+    cur.execute("DELETE FROM transactions WHERE id=%s AND user_id=%s", (transaction_id, user_id))
     conn.commit()
     cur.close()
     conn.close()
+    return True
 
 def get_monthly_summary(user_id, month):
     conn = get_db()
