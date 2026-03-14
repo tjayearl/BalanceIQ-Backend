@@ -78,12 +78,12 @@ class DebtCreate(BaseModel):
 
 # Onboarding data models
 class IncomeSource(BaseModel):
-    source: str
-    type: str
+    source: Optional[str] = ""
+    type: Optional[str] = ""
     amount: float
 
 class ExpenseItem(BaseModel):
-    description: str
+    description: Optional[str] = ""
     category: str
     amount: float
 
@@ -92,15 +92,15 @@ class DebtItem(BaseModel):
     lender: Optional[str] = ""
     amount: float
     dueDate: Optional[str] = ""
-    interestRate: Optional[float] = 0
+    interestRate: Optional[float] = 0.0
 
 class OnboardingData(BaseModel):
     workType: str
     currency: str
     country: str
-    incomes: List[IncomeSource]
-    expenses: List[ExpenseItem]
-    debts: List[DebtItem]
+    incomes: List[IncomeSource] = []
+    expenses: List[ExpenseItem] = []
+    debts: List[DebtItem] = []
 
 # -------------------------
 # Phase 1: Auth Endpoints
@@ -128,11 +128,30 @@ def logout_user(user_id: int = Depends(require_user_id), authorization: str = He
     return {"message": "Logged out successfully"}
 
 @app.get("/auth/profile")
-def get_profile(user_id: int = Depends(require_user_id)):
-    profile = get_user_profile(user_id)
-    if not profile:
+async def get_user_profile(user_id: int = Depends(require_user_id)):
+    """Get user profile"""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, email, work_type, currency, country, created_at
+        FROM users 
+        WHERE id = %s
+    """, (user_id,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return profile
+    
+    return {
+        "id": user[0],
+        "email": user[1],
+        "workType": user[2] or "Self-Employed",
+        "currency": user[3] or "USD",
+        "country": user[4] or "USA",
+        "createdAt": str(user[5])
+    }
 
 @app.post("/auth/onboarding")
 async def complete_onboarding(
@@ -158,7 +177,7 @@ async def complete_onboarding(
                 cur.execute("""
                     INSERT INTO transactions (user_id, type, amount, category, description)
                     VALUES (%s, 'income', %s, %s, %s)
-                """, (user_id, income.amount, income.type, income.source))
+                """, (user_id, income.amount, income.type or "Other", income.source or "Income"))
         
         # Add initial expense transactions
         for expense in data.expenses:
@@ -166,7 +185,7 @@ async def complete_onboarding(
                 cur.execute("""
                     INSERT INTO transactions (user_id, type, amount, category, description)
                     VALUES (%s, 'expense', %s, %s, %s)
-                """, (user_id, expense.amount, expense.category, expense.description))
+                """, (user_id, expense.amount, expense.category, expense.description or "Expense"))
         
         # Add initial debts
         for debt in data.debts:
@@ -174,7 +193,7 @@ async def complete_onboarding(
                 cur.execute("""
                     INSERT INTO debts (user_id, name, lender, amount, due_date, interest_rate, paid)
                     VALUES (%s, %s, %s, %s, %s, %s, FALSE)
-                """, (user_id, debt.name, debt.lender or "", debt.amount, debt.dueDate or None, debt.interestRate or 0))
+                """, (user_id, debt.name, debt.lender or "", debt.amount, debt.dueDate or None, debt.interestRate or 0.0))
         
         conn.commit()
         
