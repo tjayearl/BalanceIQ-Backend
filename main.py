@@ -70,10 +70,37 @@ class TransactionEdit(BaseModel):
     description: Optional[str] = None
 
 class DebtCreate(BaseModel):
-    title: str
-    description: Optional[str] = ""
+    name: str
+    lender: Optional[str] = ""
     amount: float
     due_date: str       # "YYYY-MM-DD"
+    interest_rate: Optional[float] = 0
+
+# Onboarding data models
+class IncomeSource(BaseModel):
+    source: str
+    type: str
+    amount: float
+
+class ExpenseItem(BaseModel):
+    description: str
+    category: str
+    amount: float
+
+class DebtItem(BaseModel):
+    name: str
+    lender: Optional[str] = ""
+    amount: float
+    dueDate: Optional[str] = ""
+    interestRate: Optional[float] = 0
+
+class OnboardingData(BaseModel):
+    workType: str
+    currency: str
+    country: str
+    incomes: List[IncomeSource]
+    expenses: List[ExpenseItem]
+    debts: List[DebtItem]
 
 # -------------------------
 # Phase 1: Auth Endpoints
@@ -107,6 +134,61 @@ def get_profile(user_id: int = Depends(require_user_id)):
         raise HTTPException(status_code=404, detail="User not found")
     return profile
 
+@app.post("/auth/onboarding")
+async def complete_onboarding(
+    data: OnboardingData, 
+    user_id: int = Depends(require_user_id)
+):
+    """Save user's onboarding preferences and initial data"""
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Update user profile with preferences
+        cur.execute("""
+            UPDATE users 
+            SET work_type = %s, currency = %s, country = %s
+            WHERE id = %s
+        """, (data.workType, data.currency, data.country, user_id))
+        
+        # Add initial income transactions
+        for income in data.incomes:
+            if income.amount > 0:
+                cur.execute("""
+                    INSERT INTO transactions (user_id, type, amount, category, description)
+                    VALUES (%s, 'income', %s, %s, %s)
+                """, (user_id, income.amount, income.type, income.source))
+        
+        # Add initial expense transactions
+        for expense in data.expenses:
+            if expense.amount > 0:
+                cur.execute("""
+                    INSERT INTO transactions (user_id, type, amount, category, description)
+                    VALUES (%s, 'expense', %s, %s, %s)
+                """, (user_id, expense.amount, expense.category, expense.description))
+        
+        # Add initial debts
+        for debt in data.debts:
+            if debt.amount > 0:
+                cur.execute("""
+                    INSERT INTO debts (user_id, name, lender, amount, due_date, interest_rate, paid)
+                    VALUES (%s, %s, %s, %s, %s, %s, FALSE)
+                """, (user_id, debt.name, debt.lender or "", debt.amount, debt.dueDate or None, debt.interestRate or 0))
+        
+        conn.commit()
+        
+        return {
+            "message": "Onboarding completed successfully",
+            "user_id": user_id
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Onboarding failed: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
 # -------------------------
 # Phase 1: Transactions Endpoints
 # -------------------------
@@ -138,7 +220,7 @@ def remove_transaction(tx_id: int, user_id: int = Depends(require_user_id)):
 # -------------------------
 @app.post("/debts")
 def create_debt(debt: DebtCreate, user_id: int = Depends(require_user_id)):
-    add_debt(user_id, debt.title, debt.amount, debt.due_date, debt.description or "")
+    add_debt(user_id, debt.name, debt.amount, debt.due_date, debt.lender, debt.interest_rate or 0)
     return {"message": "Debt added"}
 
 @app.get("/debts")

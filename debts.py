@@ -1,12 +1,12 @@
 from db import get_db
 
-def add_debt(user_id, title, amount, due_date, description=""):
+def add_debt(user_id, name, amount, due_date, lender="", interest_rate=0):
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute(
-        "INSERT INTO debts (user_id, title, amount, due_date, description) VALUES (%s, %s, %s, %s, %s)",
-        (user_id, title, amount, due_date, description)
+        "INSERT INTO debts (user_id, name, lender, amount, due_date, interest_rate) VALUES (%s, %s, %s, %s, %s, %s)",
+        (user_id, name, lender, amount, due_date, interest_rate)
     )
 
     conn.commit()
@@ -37,7 +37,7 @@ def mark_debt_paid(user_id, debt_id):
 def list_debts(user_id, status=None):
     conn = get_db()
     cur = conn.cursor()
-    query = "SELECT id, title, description, amount, due_date, paid FROM debts WHERE user_id=%s"
+    query = "SELECT id, name, lender, amount, due_date, interest_rate, paid FROM debts WHERE user_id=%s"
     params = [user_id]
     if status == "paid":
         query += " AND paid=TRUE"

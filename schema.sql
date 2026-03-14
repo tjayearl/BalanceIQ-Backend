@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
     hashed_password TEXT NOT NULL,
     name TEXT DEFAULT '',
     country TEXT DEFAULT 'US',
+    work_type TEXT,
+    currency TEXT DEFAULT 'USD',
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -27,10 +29,11 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS debts (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id),
-    title TEXT,
-    description TEXT,
+    name TEXT,
+    lender TEXT,
     amount NUMERIC NOT NULL,
     due_date DATE,
+    interest_rate NUMERIC DEFAULT 0,
     paid BOOLEAN DEFAULT FALSE
 );
 

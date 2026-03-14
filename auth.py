@@ -112,7 +112,7 @@ def logout(token):
 def get_user_profile(user_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, email, name, country, created_at FROM users WHERE id=%s", (user_id,))
+    cur.execute("SELECT id, email, name, country, work_type, currency, created_at FROM users WHERE id=%s", (user_id,))
     user = cur.fetchone()
     cur.close()
     conn.close()
@@ -122,6 +122,8 @@ def get_user_profile(user_id):
             "email": user[1],
             "name": user[2],
             "country": user[3],
-            "created_at": user[4]
+            "workType": user[4],
+            "currency": user[5],
+            "created_at": user[6]
         }
     return None
