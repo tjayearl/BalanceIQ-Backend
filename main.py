@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime, timedelta
+import re
 
 # helper dependency to extract and validate bearer token
 
@@ -50,22 +51,32 @@ app.add_middleware(
 # -------------------------
 class UserRegister(BaseModel):
     fullName: str
-    email: EmailStr
+    email: str
     password: str
     confirmPassword: str
+
+    class Config:
+        populate_by_name = True
 
     @validator('fullName')
     def validate_name(cls, v):
         if not v or len(v.strip()) < 2:
-            raise ValueError('Full name is required')
+            raise ValueError('Full name must be at least 2 characters')
         return v.strip()
-
+    
+    @validator('email')
+    def validate_email(cls, v):
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not v or not re.match(email_regex, v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
+    
     @validator('password')
     def validate_password(cls, v):
         if len(v) < 6:
-            raise ValueError('Password must be at least 6 characters long')
+            raise ValueError('Password must be at least 6 characters')
         return v
-
+    
     @validator('confirmPassword')
     def passwords_match(cls, v, values):
         if 'password' in values and v != values['password']:
@@ -73,7 +84,7 @@ class UserRegister(BaseModel):
         return v
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class TransactionCreate(BaseModel):
