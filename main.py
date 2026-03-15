@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
 import re
@@ -50,15 +50,14 @@ app.add_middleware(
 # Pydantic models
 # -------------------------
 class UserRegister(BaseModel):
-    fullName: str
+    full_name: str = Field(alias='fullName')
     email: str
     password: str
-    confirmPassword: str
 
     class Config:
         populate_by_name = True
 
-    @validator('fullName')
+    @validator('full_name')
     def validate_name(cls, v):
         if not v or len(v.strip()) < 2:
             raise ValueError('Full name must be at least 2 characters')
@@ -75,12 +74,6 @@ class UserRegister(BaseModel):
     def validate_password(cls, v):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters')
-        return v
-    
-    @validator('confirmPassword')
-    def passwords_match(cls, v, values):
-        if 'password' in values and v != values['password']:
-            raise ValueError('Passwords do not match')
         return v
 
 class UserLogin(BaseModel):
@@ -137,7 +130,7 @@ class OnboardingData(BaseModel):
 @app.post("/auth/register")
 async def register_user(user: UserRegister):
     # Register a new user with full name
-    success = auth_register(user.email.lower(), user.password, user.fullName)
+    success = auth_register(user.email.lower(), user.password, user.full_name)
     if not success:
         raise HTTPException(status_code=400, detail="Registration failed. Email may already be registered.")
 

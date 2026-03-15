@@ -8,6 +8,13 @@ def register(email, password, full_name="", country="US"):
     conn = get_db()
     cur = conn.cursor()
 
+    # Check if email already exists
+    cur.execute("SELECT id FROM users WHERE email=%s", (email,))
+    if cur.fetchone():
+        cur.close()
+        conn.close()
+        return False  # Email already registered
+
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(12))
     hashed_str = hashed.decode("utf-8")
 
