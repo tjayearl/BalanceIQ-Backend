@@ -22,8 +22,8 @@ def register(email, password, full_name="", country="US"):
 
     try:
         cur.execute(
-            "INSERT INTO users (email, hashed_password, full_name, name, country) VALUES (%s, %s, %s, %s, %s)",
-            (email, hashed_str, full_name, full_name, country)
+            "INSERT INTO users (email, hashed_password, name, country) VALUES (%s, %s, %s, %s)",
+            (email, hashed_str, full_name, country)
         )
         conn.commit()
         print(f"Registration successful for email: {email}")
