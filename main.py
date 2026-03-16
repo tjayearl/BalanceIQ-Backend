@@ -27,6 +27,7 @@ from finance import (
 from db import get_db
 from debts import add_debt, mark_debt_paid, list_debts, overdue_debts
 from notifications import notify, get_notifications, generate_notifications
+from app.routes.analytics import router as analytics_router
 
 # -------------------------
 # FastAPI app initialization
@@ -45,6 +46,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(analytics_router)
 
 # -------------------------
 # Pydantic models
