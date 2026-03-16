@@ -2,24 +2,22 @@ import bcrypt
 from db import get_db
 import secrets
 import datetime
-
-
+ 
 def register(email, password, full_name="", country="US"):
     conn = get_db()
     cur = conn.cursor()
-
-    # Check if email already exists
+    
     cur.execute("SELECT id FROM users WHERE email=%s", (email,))
     existing = cur.fetchone()
     if existing:
         print(f"Registration failed: Email {email} already exists (user id: {existing[0]})")
         cur.close()
         conn.close()
-        return False  # Email already registered
-
+        return False
+    
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(12))
     hashed_str = hashed.decode("utf-8")
-
+    
     try:
         cur.execute(
             "INSERT INTO users (email, hashed_password, name, country) VALUES (%s, %s, %s, %s)",
@@ -35,39 +33,36 @@ def register(email, password, full_name="", country="US"):
     finally:
         cur.close()
         conn.close()
-
+ 
 def login(email, password):
     conn = get_db()
     cur = conn.cursor()
-
+    
     cur.execute(
         "SELECT id, hashed_password FROM users WHERE email=%s",
         (email,)
     )
     user = cur.fetchone()
-
+    
     cur.close()
     conn.close()
-
+    
     if not user:
         return None
-
+    
     user_id, stored_hash = user
-
-    # psycopg2 may return bytes, memoryview, or str depending on column type.
-    # convert everything to bytes so bcrypt.checkpw works reliably.
+    
     if isinstance(stored_hash, memoryview):
         stored_hash = stored_hash.tobytes()
     elif isinstance(stored_hash, str):
         stored_hash = stored_hash.encode("utf-8")
-
+    
     if bcrypt.checkpw(password.encode(), stored_hash):
         return user_id
-
+    
     return None
-
+ 
 def create_session(user_id, duration_hours=8):
-    """Creates a new session for a user and returns a session token."""
     token = secrets.token_hex(16)
     expires_at = datetime.datetime.now() + datetime.timedelta(hours=duration_hours)
     conn = get_db()
@@ -86,9 +81,8 @@ def create_session(user_id, duration_hours=8):
     finally:
         cur.close()
         conn.close()
-
+ 
 def validate_session(token):
-    """Validates a session token and returns the user_id if valid."""
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -104,9 +98,8 @@ def validate_session(token):
     finally:
         cur.close()
         conn.close()
-
+ 
 def logout(token):
-    """Deletes a session token to log a user out."""
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -118,26 +111,25 @@ def logout(token):
     finally:
         cur.close()
         conn.close()
-
+ 
 def get_user_profile(user_id):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, email, full_name, name, country, work_type, currency, created_at FROM users WHERE id=%s",
+        "SELECT id, email, name, country, work_type, currency, created_at FROM users WHERE id=%s",
         (user_id,)
     )
     user = cur.fetchone()
     cur.close()
     conn.close()
     if user:
-        full_name = user[2] or user[3] or ""
         return {
             "id": user[0],
             "email": user[1],
-            "fullName": full_name,
-            "country": user[4],
-            "workType": user[5],
-            "currency": user[6],
-            "created_at": user[7]
+            "fullName": user[2],
+            "country": user[3],
+            "workType": user[4],
+            "currency": user[5],
+            "created_at": user[6]
         }
     return None
