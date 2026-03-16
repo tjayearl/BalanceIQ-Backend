@@ -40,6 +40,12 @@ try:
         ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'US'
     """)
     
+    # Add full_name column if it doesn't exist
+    cur.execute("""
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT ''
+    """)
+    
     conn.commit()
     print("Database migration completed successfully")
     

@@ -10,7 +10,9 @@ def register(email, password, full_name="", country="US"):
 
     # Check if email already exists
     cur.execute("SELECT id FROM users WHERE email=%s", (email,))
-    if cur.fetchone():
+    existing = cur.fetchone()
+    if existing:
+        print(f"Registration failed: Email {email} already exists (user id: {existing[0]})")
         cur.close()
         conn.close()
         return False  # Email already registered
@@ -24,10 +26,11 @@ def register(email, password, full_name="", country="US"):
             (email, hashed_str, full_name, full_name, country)
         )
         conn.commit()
+        print(f"Registration successful for email: {email}")
         return True
     except Exception as e:
         conn.rollback()
-        print("Register error:", e)
+        print(f"Register error for {email}: {e}")
         return False
     finally:
         cur.close()
