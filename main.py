@@ -122,7 +122,7 @@ class DebtItem(BaseModel):
 class OnboardingData(BaseModel):
     workType: str
     currency: str
-    country: str
+    country: Optional[str] = "US"
     incomes: List[IncomeSource] = []
     expenses: List[ExpenseItem] = []
     debts: List[DebtItem] = []
@@ -207,7 +207,7 @@ async def complete_onboarding(
             UPDATE users 
             SET work_type = %s, currency = %s, country = %s
             WHERE id = %s
-        """, (data.workType, data.currency, data.country, user_id))
+        """, (data.workType, data.currency, data.country or "US", user_id))
         
         # Add initial income transactions
         for income in data.incomes:
