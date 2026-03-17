@@ -296,6 +296,21 @@ def get_overdue_debts(user_id: int = Depends(require_user_id)):
     return overdue_debts(user_id)
 
 # -------------------------
+# Tax Calculator Endpoint
+# -------------------------
+@app.post("/tax/calculate")
+def calculate_tax_endpoint(user_id: int = Depends(require_user_id)):
+    """Calculate estimated tax for the user"""
+    tax_owed = calculate_tax(user_id)
+    balance = get_balance(user_id)
+    
+    return {
+        "tax_owed": tax_owed,
+        "balance": balance,
+        "user_id": user_id
+    }
+
+# -------------------------
 # Phase 2: Reports & Notifications
 # -------------------------
 @app.get("/notifications")
