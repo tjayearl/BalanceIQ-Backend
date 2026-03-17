@@ -20,8 +20,8 @@ def register(email, password, full_name="", country="US"):
     
     try:
         cur.execute(
-            "INSERT INTO users (email, hashed_password, name, country) VALUES (%s, %s, %s, %s)",
-            (email, hashed_str, full_name, country)
+            "INSERT INTO users (email, hashed_password, name) VALUES (%s, %s, %s)",
+            (email, hashed_str, full_name)
         )
         conn.commit()
         print(f"Registration successful for email: {email}")
@@ -116,7 +116,7 @@ def get_user_profile(user_id):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, email, name, country, work_type, currency, created_at FROM users WHERE id=%s",
+        "SELECT id, email, name, work_type, currency, created_at FROM users WHERE id=%s",
         (user_id,)
     )
     user = cur.fetchone()
@@ -127,9 +127,9 @@ def get_user_profile(user_id):
             "id": user[0],
             "email": user[1],
             "fullName": user[2],
-            "country": user[3],
-            "workType": user[4],
-            "currency": user[5],
-            "created_at": user[6]
+            "country": None,
+            "workType": user[3],
+            "currency": user[4],
+            "created_at": user[5]
         }
     return None
